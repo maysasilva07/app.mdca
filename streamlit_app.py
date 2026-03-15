@@ -105,15 +105,34 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
     ax.axhline(0, color='black', linewidth=0.8)
     return fig
 
-def gerar_grafo_sobreclassificacao(pref_matrix):
+def gerar_grafo_sobreclassificacao(phi_mais, phi_menos, alternativas):
+    """
+    Gera o grafo de sobreclassificação (PROMETHEE I) com base nos fluxos.
+    phi_mais: Series com os fluxos positivos
+    phi_menos: Series com os fluxos negativos
+    alternativas: lista com os nomes das alternativas (opcional, pode ser obtido de phi_mais.index)
+    """
     G = nx.DiGraph()
-    alternativas = pref_matrix.index.tolist()
-    G.add_nodes_from(alternativas)
-    for i, a in enumerate(alternativas):
-        for j, b in enumerate(alternativas):
-            if i == j: continue
-            if pref_matrix.loc[a, b] > pref_matrix.loc[b, a]:
+    alt_list = list(phi_mais.index)
+    G.add_nodes_from(alt_list)
+
+    for a in alt_list:
+        for b in alt_list:
+            if a == b:
+                continue
+            # Verifica se a supera b segundo as regras do PROMETHEE I
+            phi_mais_a = phi_mais[a]
+            phi_mais_b = phi_mais[b]
+            phi_menos_a = phi_menos[a]
+            phi_menos_b = phi_menos[b]
+
+            cond1 = (phi_mais_a > phi_mais_b) and (phi_menos_a < phi_menos_b)
+            cond2 = (phi_mais_a == phi_mais_b) and (phi_menos_a < phi_menos_b)
+            cond3 = (phi_mais_a > phi_mais_b) and (phi_menos_a == phi_menos_b)
+
+            if cond1 or cond2 or cond3:
                 G.add_edge(a, b)
+
     fig, ax = plt.subplots(figsize=(8, 6))
     pos = nx.spring_layout(G, seed=42)
     nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=2000,
@@ -149,7 +168,7 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
                 pdf.cell(200, 4, txt=linha, ln=True)
         pdf.ln(5)
 
-    # AJUSTE: Incluir limiares no relatório
+    # Incluir limiares no relatório
     if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(200, 10, txt="Limiares dos Critérios (q e p):", ln=True)
@@ -226,7 +245,7 @@ def gerar_relatorio_docx(dados, nome_arquivo):
     doc = Document()
     doc.add_heading('Relatório MCDA - CRITIC + PROMETHEE', level=1)
 
-    # AJUSTE: Incluir limiares no relatório
+    # Incluir limiares no relatório
     if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
         doc.add_heading('Limiares dos Critérios (q e p)', level=2)
         tabela_lim = doc.add_table(rows=1, cols=4)
@@ -374,7 +393,6 @@ def main():
         criterios = df.columns.tolist()
 
         tipos, qs, ps = {}, {}, {}
-        # AJUSTE: Validar se p >= q
         valid_limiares = True
         for crit in criterios:
             st.write(f"**Critério: {crit}**")
@@ -414,7 +432,7 @@ def main():
                     st.session_state.pesos_manuais = None
                 st.success("Pesos manuais definidos e normalizados!")
 
-        # AJUSTE: Só permite avançar se todos os limiares forem válidos
+        # Só permite avançar se todos os limiares forem válidos
         if st.button("Confirmar Parâmetros e Avançar", disabled=not valid_limiares):
             if valid_limiares:
                 st.session_state.criterios_params = {
@@ -483,7 +501,8 @@ def main():
                 with col_graf1:
                     st.pyplot(gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido))
                 with col_graf2:
-                    st.pyplot(gerar_grafo_sobreclassificacao(pref_matrix))
+                    # Agora passamos os fluxos, não a matriz
+                    st.pyplot(gerar_grafo_sobreclassificacao(phi_mais, phi_menos, phi_mais.index))
 
                 # Armazenar resultados para o relatório, incluindo os limiares e tipos
                 st.session_state.resultados = {
@@ -498,8 +517,7 @@ def main():
                     'ranking': ranking,
                     'fig_pesos': gerar_grafico_pesos(pesos),
                     'fig_fluxos': gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido),
-                    'fig_grafo': gerar_grafo_sobreclassificacao(pref_matrix),
-                    # AJUSTE: Incluir limiares e tipos para o relatório
+                    'fig_grafo': gerar_grafo_sobreclassificacao(phi_mais, phi_menos, phi_mais.index),
                     'q_limites': qs,
                     'p_limites': ps,
                     'tipos': tipos
