@@ -175,19 +175,183 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     return fig
 
 # ------------------------------------------------------------
-# FUNÇÕES DE RELATÓRIO (PDF E DOCX) – (mantidas, mas por espaço não repetirei)
+# FUNÇÕES DE RELATÓRIO (PDF E DOCX)
 # ------------------------------------------------------------
-# ATENÇÃO: Você deve manter as funções gerar_relatorio_pdf e gerar_relatorio_docx 
-# exatamente como estavam na versão anterior. Aqui vou apenas indicar que elas existem.
-# No seu código, cole as funções completas que já funcionavam.
 
 def gerar_relatorio_pdf(dados, nome_arquivo):
-    # (código completo da função - igual ao anterior)
-    pass
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Relatório MCDA - CRITIC + PROMETHEE", ln=True, align='C')
+    pdf.ln(10)
+
+    def ascii_only(texto):
+        if isinstance(texto, str):
+            return texto.encode('ascii', 'ignore').decode('ascii')
+        return str(texto)
+
+    def adicionar_tabela_texto(titulo, df):
+        titulo_ascii = ascii_only(titulo)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(200, 10, txt=titulo_ascii, ln=True)
+        pdf.set_font("Arial", size=8)
+        linhas = ascii_only(df.to_string(index=True)).split('\n')
+        for linha in linhas:
+            if linha.strip():
+                pdf.cell(200, 4, txt=linha, ln=True)
+        pdf.ln(5)
+
+    if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(200, 10, txt="Limiares dos Critérios (q e p):", ln=True)
+        pdf.set_font("Arial", size=8)
+        pdf.cell(40, 5, "Critério", border=1)
+        pdf.cell(20, 5, "Tipo", border=1)
+        pdf.cell(30, 5, "q (indif)", border=1)
+        pdf.cell(30, 5, "p (pref)", border=1)
+        pdf.ln()
+        for crit in dados['tipos'].keys():
+            crit_ascii = ascii_only(crit)
+            tipo = dados['tipos'][crit]
+            q_val = dados['q_limites'][crit]
+            p_val = dados['p_limites'][crit]
+            pdf.cell(40, 5, crit_ascii, border=1)
+            pdf.cell(20, 5, tipo, border=1)
+            pdf.cell(30, 5, f"{q_val:.2f}", border=1)
+            pdf.cell(30, 5, f"{p_val:.2f}", border=1)
+            pdf.ln()
+        pdf.ln(10)
+
+    adicionar_tabela_texto("Dados de Entrada:", dados['entrada'])
+    adicionar_tabela_texto("Matriz Normalizada (CRITIC):", dados['norm'])
+    if not dados['correl'].empty:
+        adicionar_tabela_texto("Matriz de Correlação (CRITIC):", dados['correl'])
+    adicionar_tabela_texto("Matriz de Preferência Agregada:", dados['pref_matrix'])
+
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(200, 10, txt="Pesos dos Critérios:", ln=True)
+    pdf.set_font("Arial", size=10)
+    for crit, peso in dados['pesos'].items():
+        crit_ascii = ascii_only(crit)
+        pdf.cell(200, 5, txt=f"{crit_ascii}: {peso:.4f}", ln=True)
+    pdf.ln(5)
+
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(200, 10, txt="Fluxos PROMETHEE:", ln=True)
+    pdf.set_font("Arial", size=10)
+    for alt in dados['phi_liquido'].index:
+        alt_ascii = ascii_only(alt)
+        pdf.cell(200, 5, txt=f"{alt_ascii}: Fluxo+ = {dados['phi_mais'][alt]:.4f}, Fluxo- = {dados['phi_menos'][alt]:.4f}, Fluxo Líquido = {dados['phi_liquido'][alt]:.4f}", ln=True)
+    pdf.ln(5)
+
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(200, 10, txt="Ranking PROMETHEE II:", ln=True)
+    pdf.set_font("Arial", size=10)
+    for alt, pos in dados['ranking'].items():
+        alt_ascii = ascii_only(alt)
+        pdf.cell(200, 5, txt=f"{alt_ascii}: {pos}º", ln=True)
+    pdf.ln(10)
+
+    def adicionar_imagem(fig, titulo):
+        titulo_ascii = ascii_only(titulo)
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            fig.savefig(tmp.name, format='png', bbox_inches='tight')
+            tmp.close()
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(200, 10, txt=titulo_ascii, ln=True, align='C')
+            pdf.image(tmp.name, x=10, y=30, w=180)
+            try:
+                os.unlink(tmp.name)
+            except PermissionError:
+                pass
+
+    adicionar_imagem(dados['fig_pesos'], "Gráfico de Pesos")
+    adicionar_imagem(dados['fig_fluxos'], "Gráfico de Fluxos (barras)")
+    adicionar_imagem(dados['fig_grafo'], "Grafo de Sobreclassificação (PROMETHEE I)")
+
+    pdf.output(nome_arquivo)
 
 def gerar_relatorio_docx(dados, nome_arquivo):
-    # (código completo da função - igual ao anterior)
-    pass
+    doc = Document()
+    doc.add_heading('Relatório MCDA - CRITIC + PROMETHEE', level=1)
+
+    if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
+        doc.add_heading('Limiares dos Critérios (q e p)', level=2)
+        tabela_lim = doc.add_table(rows=1, cols=4)
+        tabela_lim.style = 'Light Grid Accent 1'
+        hdr = tabela_lim.rows[0].cells
+        hdr[0].text = 'Critério'
+        hdr[1].text = 'Tipo'
+        hdr[2].text = 'q (indiferença)'
+        hdr[3].text = 'p (preferência)'
+        for crit in dados['tipos'].keys():
+            cells = tabela_lim.add_row().cells
+            cells[0].text = str(crit)
+            cells[1].text = dados['tipos'][crit]
+            cells[2].text = f"{dados['q_limites'][crit]:.2f}"
+            cells[3].text = f"{dados['p_limites'][crit]:.2f}"
+
+    def adicionar_tabela_docx(titulo, df):
+        doc.add_heading(titulo, level=2)
+        tabela = doc.add_table(rows=1, cols=len(df.columns)+1)
+        tabela.style = 'Light Grid Accent 1'
+        hdr_cells = tabela.rows[0].cells
+        hdr_cells[0].text = 'Alternativa'
+        for j, col in enumerate(df.columns):
+            hdr_cells[j+1].text = str(col)
+        for i, row in df.iterrows():
+            row_cells = tabela.add_row().cells
+            row_cells[0].text = str(i)
+            for j, val in enumerate(row):
+                row_cells[j+1].text = f"{val:.4f}" if isinstance(val, (int, float)) else str(val)
+
+    adicionar_tabela_docx("Dados de Entrada", dados['entrada'])
+    adicionar_tabela_docx("Matriz Normalizada (CRITIC)", dados['norm'])
+    if not dados['correl'].empty:
+        adicionar_tabela_docx("Matriz de Correlação (CRITIC)", dados['correl'])
+    adicionar_tabela_docx("Matriz de Preferência Agregada (Π)", dados['pref_matrix'])
+
+    doc.add_heading('Pesos dos Critérios', level=2)
+    for crit, peso in dados['pesos'].items():
+        doc.add_paragraph(f"{crit}: {peso:.4f}")
+
+    doc.add_heading('Fluxos PROMETHEE', level=2)
+    tabela_fluxos = doc.add_table(rows=1, cols=4)
+    tabela_fluxos.style = 'Light Grid Accent 1'
+    hdr = tabela_fluxos.rows[0].cells
+    hdr[0].text = 'Alternativa'
+    hdr[1].text = 'Φ+'
+    hdr[2].text = 'Φ-'
+    hdr[3].text = 'Φ Líquido'
+    for alt in dados['phi_liquido'].index:
+        cells = tabela_fluxos.add_row().cells
+        cells[0].text = str(alt)
+        cells[1].text = f"{dados['phi_mais'][alt]:.4f}"
+        cells[2].text = f"{dados['phi_menos'][alt]:.4f}"
+        cells[3].text = f"{dados['phi_liquido'][alt]:.4f}"
+
+    doc.add_heading('Ranking PROMETHEE II', level=2)
+    for alt, pos in dados['ranking'].items():
+        doc.add_paragraph(f"{alt}: {pos}º")
+
+    def adicionar_imagem_docx(fig, titulo):
+        doc.add_heading(titulo, level=2)
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            fig.savefig(tmp.name, format='png', bbox_inches='tight')
+            tmp.seek(0)
+            doc.add_picture(tmp.name, width=Inches(5))
+            tmp.close()
+            try:
+                os.unlink(tmp.name)
+            except PermissionError:
+                pass
+
+    adicionar_imagem_docx(dados['fig_pesos'], "Gráfico de Pesos")
+    adicionar_imagem_docx(dados['fig_fluxos'], "Gráfico de Fluxos (barras)")
+    adicionar_imagem_docx(dados['fig_grafo'], "Grafo de Sobreclassificação (PROMETHEE I)")
+
+    doc.save(nome_arquivo)
 
 # ------------------------------------------------------------
 # FUNÇÃO PARA LIMPAR O ESTADO (NOVA ANÁLISE)
