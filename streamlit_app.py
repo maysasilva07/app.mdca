@@ -111,7 +111,7 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
     return fig
 
 # ------------------------------------------------------------
-# FUNÇÃO ATUALIZADA DO GRAFO (com setas triangulares grandes e margens)
+# FUNÇÃO CORRIGIDA DO GRAFO (com setas visíveis e sem corte de rótulos)
 # ------------------------------------------------------------
 def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     """
@@ -139,7 +139,8 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
             if cond1 or cond2 or cond3:
                 G.add_edge(a, b)
 
-    fig, ax = plt.subplots(figsize=(14, 10))
+    # AUMENTAR O TAMANHO DA FIGURA PARA EVITAR CORTES
+    fig, ax = plt.subplots(figsize=(16, 12))
 
     # Se não houver arestas, exibe um aviso no gráfico
     if G.number_of_edges() == 0:
@@ -152,22 +153,22 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     # Layout spring para distribuir bem os nós
     pos = nx.spring_layout(G, seed=42, k=3, iterations=100)
 
-    # Desenha nós com bordas e tamanho ajustado (reduzido para dar espaço às setas)
-    nx.draw_networkx_nodes(G, pos, node_size=4000, node_color='lightblue', 
+    # REDUZIR O TAMANHO DOS NÓS PARA DAR ESPAÇO ÀS SETAS E RÓTULOS
+    nx.draw_networkx_nodes(G, pos, node_size=3500, node_color='lightblue', 
                            edgecolors='black', linewidths=2, ax=ax)
 
-    # Desenha arestas com setas triangulares grandes e com margens
+    # DESENHAR ARESTAS COM SETAS TRIANGULARES MAIORES E MARGENS AJUSTADAS
     nx.draw_networkx_edges(
         G, pos,
         arrows=True,
         arrowstyle='-|>',                 # Seta triangular preenchida
-        arrowsize=50,                      # Tamanho da seta bem grande
+        arrowsize=60,                      # AUMENTAR TAMANHO DA SETA
         edge_color='gray',
         width=3,
         connectionstyle='arc3,rad=0.2',    # Arestas curvas
         ax=ax,
-        min_source_margin=20,              # Evita que a seta comece dentro do nó origem
-        min_target_margin=20                # Evita que a ponta da seta penetre no nó destino
+        min_source_margin=15,               # REDUZIR MARGENS PARA NÃO SUPRIMIR SETAS
+        min_target_margin=15                 # REDUZIR MARGENS
     )
 
     # Desenha rótulos com fonte maior
@@ -176,7 +177,11 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
 
     ax.set_title("Grafo de Sobreclassificação (PROMETHEE I)", fontsize=18, pad=20)
     ax.axis('off')
+    
+    # AJUSTAR LAYOUT E ADICIONAR MARGEM EXTRA PARA EVITAR CORTES
     plt.tight_layout()
+    plt.margins(0.2)   # Garante que os rótulos não fiquem nas bordas
+    
     return fig
 
 # ------------------------------------------------------------
