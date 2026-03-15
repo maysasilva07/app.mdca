@@ -110,6 +110,9 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
     ax.axhline(0, color='black', linewidth=0.8)
     return fig
 
+# ------------------------------------------------------------
+# FUNÇÃO ATUALIZADA DO GRAFO (com setas triangulares grandes e margens)
+# ------------------------------------------------------------
 def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     """
     Gera o grafo de sobreclassificação (PROMETHEE I) com setas triangulares na ponta.
@@ -149,20 +152,22 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     # Layout spring para distribuir bem os nós
     pos = nx.spring_layout(G, seed=42, k=3, iterations=100)
 
-    # Desenha nós com bordas e tamanho grande
-    nx.draw_networkx_nodes(G, pos, node_size=5000, node_color='lightblue', 
+    # Desenha nós com bordas e tamanho ajustado (reduzido para dar espaço às setas)
+    nx.draw_networkx_nodes(G, pos, node_size=4000, node_color='lightblue', 
                            edgecolors='black', linewidths=2, ax=ax)
 
-    # Desenha arestas com setas triangulares na ponta
+    # Desenha arestas com setas triangulares grandes e com margens
     nx.draw_networkx_edges(
         G, pos,
         arrows=True,
-        arrowstyle='-|>',        # Seta triangular
-        arrowsize=40,            # Tamanho da seta bem grande
+        arrowstyle='-|>',                 # Seta triangular preenchida
+        arrowsize=50,                      # Tamanho da seta bem grande
         edge_color='gray',
         width=3,
-        connectionstyle='arc3,rad=0.2',
-        ax=ax
+        connectionstyle='arc3,rad=0.2',    # Arestas curvas
+        ax=ax,
+        min_source_margin=20,              # Evita que a seta comece dentro do nó origem
+        min_target_margin=20                # Evita que a ponta da seta penetre no nó destino
     )
 
     # Desenha rótulos com fonte maior
