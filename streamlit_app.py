@@ -111,7 +111,7 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
     return fig
 
 # ------------------------------------------------------------
-# FUNÇÃO CORRIGIDA DO GRAFO (setas triangulares nítidas em todas as arestas)
+# FUNÇÃO CORRIGIDA DO GRAFO (setas triangulares visíveis)
 # ------------------------------------------------------------
 def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     """
@@ -139,10 +139,9 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
             if cond1 or cond2 or cond3:
                 G.add_edge(a, b)
 
-    # Figura maior para acomodar todos os elementos
-    fig, ax = plt.subplots(figsize=(18, 12))
+    fig, ax = plt.subplots(figsize=(14, 10))
 
-    # Se não houver arestas, exibe um aviso
+    # Se não houver arestas, exibe um aviso no gráfico
     if G.number_of_edges() == 0:
         ax.text(0.5, 0.5, 'Nenhuma relação de sobreclassificação encontrada', 
                 ha='center', va='center', fontsize=16, transform=ax.transAxes)
@@ -150,38 +149,34 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
         ax.axis('off')
         return fig
 
-    # Layout para distribuir os nós
+    # Layout spring para distribuir bem os nós
     pos = nx.spring_layout(G, seed=42, k=3, iterations=100)
 
-    # Desenha nós com tamanho reduzido para dar espaço às setas
-    nx.draw_networkx_nodes(G, pos, node_size=3500, node_color='lightblue', 
+    # Desenha nós com bordas e tamanho ajustado
+    nx.draw_networkx_nodes(G, pos, node_size=4000, node_color='lightblue', 
                            edgecolors='black', linewidths=2, ax=ax)
 
-    # Desenha arestas com setas triangulares grandes e bem visíveis
+    # Desenha arestas com setas triangulares grandes e margens para garantir visibilidade
     nx.draw_networkx_edges(
         G, pos,
         arrows=True,
         arrowstyle='-|>',                 # Seta triangular preenchida
-        arrowsize=70,                      # Tamanho extra grande
+        arrowsize=40,                      # Tamanho da seta (bem visível)
         edge_color='gray',
-        width=4,                           # Linha mais grossa
-        connectionstyle='arc3,rad=0.2',    # Arestas curvas
+        width=3,
+        connectionstyle='arc3,rad=0.1',    # Curvatura leve para evitar sobreposição
         ax=ax,
-        min_source_margin=10,               # Margem mínima na origem
-        min_target_margin=10                 # Margem mínima no destino (permite seta visível)
+        min_source_margin=25,               # Margem na origem (seta não começa dentro do nó)
+        min_target_margin=25                 # Margem no destino (ponta não fica escondida)
     )
 
-    # Rótulos com fonte maior
+    # Desenha rótulos com fonte maior
     nx.draw_networkx_labels(G, pos, font_size=16, font_weight='bold', 
                             font_family='DejaVu Sans', ax=ax)
 
     ax.set_title("Grafo de Sobreclassificação (PROMETHEE I)", fontsize=18, pad=20)
     ax.axis('off')
-    
-    # Ajusta margens para evitar corte de rótulos
     plt.tight_layout()
-    plt.margins(0.15)
-    
     return fig
 
 # ------------------------------------------------------------
