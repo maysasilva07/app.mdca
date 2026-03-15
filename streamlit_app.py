@@ -111,7 +111,7 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
     return fig
 
 # ------------------------------------------------------------
-# FUNÇÃO CORRIGIDA DO GRAFO (setas triangulares visíveis)
+# FUNÇÃO CORRIGIDA DO GRAFO (conforme especificações)
 # ------------------------------------------------------------
 def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     """
@@ -152,22 +152,21 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     # Layout spring para distribuir bem os nós
     pos = nx.spring_layout(G, seed=42, k=3, iterations=100)
 
-    # Desenha nós com bordas e tamanho ajustado
+    # Desenha nós sem borda preta (edgecolors='none')
     nx.draw_networkx_nodes(G, pos, node_size=4000, node_color='lightblue', 
-                           edgecolors='black', linewidths=2, ax=ax)
+                           edgecolors='none', linewidths=0, ax=ax)
 
-    # Desenha arestas com setas triangulares grandes e margens para garantir visibilidade
+    # Desenha arestas retas, pretas, com setas triangulares e margens de 25
     nx.draw_networkx_edges(
         G, pos,
         arrows=True,
         arrowstyle='-|>',                 # Seta triangular preenchida
-        arrowsize=40,                      # Tamanho da seta (bem visível)
-        edge_color='gray',
+        arrowsize=30,                      # Tamanho da seta (bem visível)
+        edge_color='black',                 # Linha preta
         width=3,
-        connectionstyle='arc3,rad=0.1',    # Curvatura leve para evitar sobreposição
         ax=ax,
-        min_source_margin=25,               # Margem na origem (seta não começa dentro do nó)
-        min_target_margin=25                 # Margem no destino (ponta não fica escondida)
+        min_source_margin=25,               # Margem na origem
+        min_target_margin=25                 # Margem no destino
     )
 
     # Desenha rótulos com fonte maior
