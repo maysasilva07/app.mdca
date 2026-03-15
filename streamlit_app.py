@@ -123,7 +123,7 @@ def gerar_grafo_sobreclassificacao(pref_matrix):
     return fig
 
 # ------------------------------------------------------------
-# FUNÇÕES DE RELATÓRIO (CORRIGIDAS PARA ASCII)
+# FUNÇÕES DE RELATÓRIO (CORRIGIDAS PARA ASCII E COM LIMIARES)
 # ------------------------------------------------------------
 
 def gerar_relatorio_pdf(dados, nome_arquivo):
@@ -148,6 +148,29 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
             if linha.strip():
                 pdf.cell(200, 4, txt=linha, ln=True)
         pdf.ln(5)
+
+    # AJUSTE: Incluir limiares no relatório
+    if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(200, 10, txt="Limiares dos Critérios (q e p):", ln=True)
+        pdf.set_font("Arial", size=8)
+        # Cabeçalho
+        pdf.cell(40, 5, "Critério", border=1)
+        pdf.cell(20, 5, "Tipo", border=1)
+        pdf.cell(30, 5, "q (indif)", border=1)
+        pdf.cell(30, 5, "p (pref)", border=1)
+        pdf.ln()
+        for crit in dados['tipos'].keys():
+            crit_ascii = ascii_only(crit)
+            tipo = dados['tipos'][crit]
+            q_val = dados['q_limites'][crit]
+            p_val = dados['p_limites'][crit]
+            pdf.cell(40, 5, crit_ascii, border=1)
+            pdf.cell(20, 5, tipo, border=1)
+            pdf.cell(30, 5, f"{q_val:.2f}", border=1)
+            pdf.cell(30, 5, f"{p_val:.2f}", border=1)
+            pdf.ln()
+        pdf.ln(10)
 
     adicionar_tabela_texto("Dados de Entrada:", dados['entrada'])
     adicionar_tabela_texto("Matriz Normalizada (CRITIC):", dados['norm'])
@@ -202,6 +225,23 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
 def gerar_relatorio_docx(dados, nome_arquivo):
     doc = Document()
     doc.add_heading('Relatório MCDA - CRITIC + PROMETHEE', level=1)
+
+    # AJUSTE: Incluir limiares no relatório
+    if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
+        doc.add_heading('Limiares dos Critérios (q e p)', level=2)
+        tabela_lim = doc.add_table(rows=1, cols=4)
+        tabela_lim.style = 'Light Grid Accent 1'
+        hdr = tabela_lim.rows[0].cells
+        hdr[0].text = 'Critério'
+        hdr[1].text = 'Tipo'
+        hdr[2].text = 'q (indiferença)'
+        hdr[3].text = 'p (preferência)'
+        for crit in dados['tipos'].keys():
+            cells = tabela_lim.add_row().cells
+            cells[0].text = str(crit)
+            cells[1].text = dados['tipos'][crit]
+            cells[2].text = f"{dados['q_limites'][crit]:.2f}"
+            cells[3].text = f"{dados['p_limites'][crit]:.2f}"
 
     def adicionar_tabela_docx(titulo, df):
         doc.add_heading(titulo, level=2)
@@ -334,6 +374,8 @@ def main():
         criterios = df.columns.tolist()
 
         tipos, qs, ps = {}, {}, {}
+        # AJUSTE: Validar se p >= q
+        valid_limiares = True
         for crit in criterios:
             st.write(f"**Critério: {crit}**")
             cols_params = st.columns(3)
@@ -341,8 +383,9 @@ def main():
             qs[crit] = cols_params[1].number_input("Limiar q (Indiferença)", min_value=0.0, value=0.0, key=f"q_{crit}")
             ps[crit] = cols_params[2].number_input("Limiar p (Preferência Forte)", min_value=0.0, value=0.0, key=f"p_{crit}")
 
-            if ps[crit] < qs[crit] and ps[crit] != 0:
+            if ps[crit] < qs[crit]:
                 st.error(f"O limiar 'p' deve ser maior ou igual a 'q' no critério {crit}.")
+                valid_limiares = False
 
         # 2.1 OPÇÃO DE PESOS (CRITIC OU MANUAL)
         st.subheader("Método de Definição dos Pesos")
@@ -371,14 +414,18 @@ def main():
                     st.session_state.pesos_manuais = None
                 st.success("Pesos manuais definidos e normalizados!")
 
-        if st.button("Confirmar Parâmetros e Avançar"):
-            st.session_state.criterios_params = {
-                'tipos': tipos,
-                'qs': qs,
-                'ps': ps,
-                'metodo_peso': metodo_peso
-            }
-            st.success("Parâmetros confirmados! Agora vá para a execução.")
+        # AJUSTE: Só permite avançar se todos os limiares forem válidos
+        if st.button("Confirmar Parâmetros e Avançar", disabled=not valid_limiares):
+            if valid_limiares:
+                st.session_state.criterios_params = {
+                    'tipos': tipos,
+                    'qs': qs,
+                    'ps': ps,
+                    'metodo_peso': metodo_peso
+                }
+                st.success("Parâmetros confirmados! Agora vá para a execução.")
+            else:
+                st.error("Corrija os limiares antes de continuar.")
 
     # 3. EXECUÇÃO
     if st.session_state.dados_entrada is not None and st.session_state.criterios_params:
@@ -438,7 +485,7 @@ def main():
                 with col_graf2:
                     st.pyplot(gerar_grafo_sobreclassificacao(pref_matrix))
 
-                # Armazenar resultados para o relatório
+                # Armazenar resultados para o relatório, incluindo os limiares e tipos
                 st.session_state.resultados = {
                     'entrada': df,
                     'norm': df_norm,
@@ -451,7 +498,11 @@ def main():
                     'ranking': ranking,
                     'fig_pesos': gerar_grafico_pesos(pesos),
                     'fig_fluxos': gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido),
-                    'fig_grafo': gerar_grafo_sobreclassificacao(pref_matrix)
+                    'fig_grafo': gerar_grafo_sobreclassificacao(pref_matrix),
+                    # AJUSTE: Incluir limiares e tipos para o relatório
+                    'q_limites': qs,
+                    'p_limites': ps,
+                    'tipos': tipos
                 }
 
                 st.success("Análise concluída!")
@@ -475,7 +526,10 @@ def main():
                     'ranking': resultados['ranking'],
                     'fig_pesos': resultados['fig_pesos'],
                     'fig_fluxos': resultados['fig_fluxos'],
-                    'fig_grafo': resultados['fig_grafo']
+                    'fig_grafo': resultados['fig_grafo'],
+                    'q_limites': resultados['q_limites'],
+                    'p_limites': resultados['p_limites'],
+                    'tipos': resultados['tipos']
                 }
                 if formato == "PDF":
                     arquivo_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
