@@ -11,6 +11,11 @@ import tempfile
 import os
 
 # ------------------------------------------------------------
+# CONFIGURAÇÃO DE FONTE PARA GARANTIR ACENTUAÇÃO
+# ------------------------------------------------------------
+plt.rcParams['font.family'] = 'DejaVu Sans'  # Fonte que suporta acentos
+
+# ------------------------------------------------------------
 # MODELAGEM MATEMÁTICA: CRITIC E PROMETHEE
 # ------------------------------------------------------------
 
@@ -96,7 +101,7 @@ def gerar_grafico_pesos(pesos):
     return fig
 
 def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
-    df_plot = pd.DataFrame({'Fluxo+': phi_mais, 'Fluxo-': phi_menos, 'Fluxo Liquido': phi_liquido})
+    df_plot = pd.DataFrame({'Fluxo+': phi_mais, 'Fluxo-': phi_menos, 'Fluxo Líquido': phi_liquido})
     fig, ax = plt.subplots(figsize=(10, 5))
     df_plot.plot(kind='bar', ax=ax, color=['green', 'red', 'blue'])
     ax.set_title('Fluxos de Superação - PROMETHEE')
@@ -105,12 +110,11 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
     ax.axhline(0, color='black', linewidth=0.8)
     return fig
 
-def gerar_grafo_sobreclassificacao(phi_mais, phi_menos, alternativas):
+def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     """
     Gera o grafo de sobreclassificação (PROMETHEE I) com base nos fluxos.
     phi_mais: Series com os fluxos positivos
     phi_menos: Series com os fluxos negativos
-    alternativas: lista com os nomes das alternativas (opcional, pode ser obtido de phi_mais.index)
     """
     G = nx.DiGraph()
     alt_list = list(phi_mais.index)
@@ -120,12 +124,12 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos, alternativas):
         for b in alt_list:
             if a == b:
                 continue
-            # Verifica se a supera b segundo as regras do PROMETHEE I
             phi_mais_a = phi_mais[a]
             phi_mais_b = phi_mais[b]
             phi_menos_a = phi_menos[a]
             phi_menos_b = phi_menos[b]
 
+            # Critérios de sobreclassificação do PROMETHEE I
             cond1 = (phi_mais_a > phi_mais_b) and (phi_menos_a < phi_menos_b)
             cond2 = (phi_mais_a == phi_mais_b) and (phi_menos_a < phi_menos_b)
             cond3 = (phi_mais_a > phi_mais_b) and (phi_menos_a == phi_menos_b)
@@ -133,23 +137,36 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos, alternativas):
             if cond1 or cond2 or cond3:
                 G.add_edge(a, b)
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    pos = nx.spring_layout(G, seed=42)
-    nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=2000,
-            font_size=10, font_weight='bold', arrows=True, arrowstyle='-|>',
-            arrowsize=20, ax=ax)
-    ax.set_title("Grafo de Sobreclassificação (PROMETHEE I)")
+    # Configurar a figura com tamanho adequado
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Layout circular para evitar sobreposição
+    pos = nx.circular_layout(G)
+
+    # Desenhar nós com tamanho grande
+    nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=3500, ax=ax)
+
+    # Desenhar arestas com setas
+    nx.draw_networkx_edges(G, pos, ax=ax, arrows=True, arrowstyle='-|>', arrowsize=25, edge_color='gray')
+
+    # Desenhar rótulos com fonte que suporta acentos
+    nx.draw_networkx_labels(G, pos, font_size=14, font_weight='bold', font_family='DejaVu Sans', ax=ax)
+
+    ax.set_title("Grafo de Sobreclassificação (PROMETHEE I)", fontsize=16, pad=20)
+    ax.axis('off')  # Remove eixos
+    plt.tight_layout()
+
     return fig
 
 # ------------------------------------------------------------
-# FUNÇÕES DE RELATÓRIO (CORRIGIDAS PARA ASCII E COM LIMIARES)
+# FUNÇÕES DE RELATÓRIO (PDF E DOCX)
 # ------------------------------------------------------------
 
 def gerar_relatorio_pdf(dados, nome_arquivo):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Relatorio MCDA - CRITIC + PROMETHEE", ln=True, align='C')
+    pdf.cell(200, 10, txt="Relatório MCDA - CRITIC + PROMETHEE", ln=True, align='C')
     pdf.ln(10)
 
     def ascii_only(texto):
@@ -168,7 +185,7 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
                 pdf.cell(200, 4, txt=linha, ln=True)
         pdf.ln(5)
 
-    # Incluir limiares no relatório
+    # Incluir limiares
     if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(200, 10, txt="Limiares dos Critérios (q e p):", ln=True)
@@ -194,11 +211,11 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
     adicionar_tabela_texto("Dados de Entrada:", dados['entrada'])
     adicionar_tabela_texto("Matriz Normalizada (CRITIC):", dados['norm'])
     if not dados['correl'].empty:
-        adicionar_tabela_texto("Matriz de Correlacao (CRITIC):", dados['correl'])
-    adicionar_tabela_texto("Matriz de Preferencia Agregada:", dados['pref_matrix'])
+        adicionar_tabela_texto("Matriz de Correlação (CRITIC):", dados['correl'])
+    adicionar_tabela_texto("Matriz de Preferência Agregada:", dados['pref_matrix'])
 
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(200, 10, txt="Pesos dos Criterios:", ln=True)
+    pdf.cell(200, 10, txt="Pesos dos Critérios:", ln=True)
     pdf.set_font("Arial", size=10)
     for crit, peso in dados['pesos'].items():
         crit_ascii = ascii_only(crit)
@@ -210,7 +227,7 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
     pdf.set_font("Arial", size=10)
     for alt in dados['phi_liquido'].index:
         alt_ascii = ascii_only(alt)
-        pdf.cell(200, 5, txt=f"{alt_ascii}: Fluxo+ = {dados['phi_mais'][alt]:.4f}, Fluxo- = {dados['phi_menos'][alt]:.4f}, Fluxo Liquido = {dados['phi_liquido'][alt]:.4f}", ln=True)
+        pdf.cell(200, 5, txt=f"{alt_ascii}: Fluxo+ = {dados['phi_mais'][alt]:.4f}, Fluxo- = {dados['phi_menos'][alt]:.4f}, Fluxo Líquido = {dados['phi_liquido'][alt]:.4f}", ln=True)
     pdf.ln(5)
 
     pdf.set_font("Arial", 'B', 10)
@@ -218,7 +235,7 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
     pdf.set_font("Arial", size=10)
     for alt, pos in dados['ranking'].items():
         alt_ascii = ascii_only(alt)
-        pdf.cell(200, 5, txt=f"{alt_ascii}: {pos}o", ln=True)
+        pdf.cell(200, 5, txt=f"{alt_ascii}: {pos}º", ln=True)
     pdf.ln(10)
 
     def adicionar_imagem(fig, titulo):
@@ -235,9 +252,9 @@ def gerar_relatorio_pdf(dados, nome_arquivo):
             except PermissionError:
                 pass
 
-    adicionar_imagem(dados['fig_pesos'], "Grafico de Pesos")
-    adicionar_imagem(dados['fig_fluxos'], "Grafico de Fluxos (barras)")
-    adicionar_imagem(dados['fig_grafo'], "Grafo de Sobreclassificacao (PROMETHEE I)")
+    adicionar_imagem(dados['fig_pesos'], "Gráfico de Pesos")
+    adicionar_imagem(dados['fig_fluxos'], "Gráfico de Fluxos (barras)")
+    adicionar_imagem(dados['fig_grafo'], "Grafo de Sobreclassificação (PROMETHEE I)")
 
     pdf.output(nome_arquivo)
 
@@ -245,7 +262,6 @@ def gerar_relatorio_docx(dados, nome_arquivo):
     doc = Document()
     doc.add_heading('Relatório MCDA - CRITIC + PROMETHEE', level=1)
 
-    # Incluir limiares no relatório
     if 'q_limites' in dados and 'p_limites' in dados and 'tipos' in dados:
         doc.add_heading('Limiares dos Critérios (q e p)', level=2)
         tabela_lim = doc.add_table(rows=1, cols=4)
@@ -352,7 +368,11 @@ def main():
         arquivo = st.file_uploader("Faça upload da planilha", type=['xlsx', 'csv'])
         if arquivo is not None:
             try:
-                df = pd.read_csv(arquivo, index_col=0) if arquivo.name.endswith('.csv') else pd.read_excel(arquivo, index_col=0)
+                # Garantir a leitura correta de caracteres especiais
+                if arquivo.name.endswith('.csv'):
+                    df = pd.read_csv(arquivo, index_col=0, encoding='utf-8')
+                else:
+                    df = pd.read_excel(arquivo, index_col=0)
                 st.session_state.dados_entrada = df
                 st.success("Arquivo carregado com sucesso!")
                 st.dataframe(df)
@@ -501,8 +521,8 @@ def main():
                 with col_graf1:
                     st.pyplot(gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido))
                 with col_graf2:
-                    # Agora passamos os fluxos, não a matriz
-                    st.pyplot(gerar_grafo_sobreclassificacao(phi_mais, phi_menos, phi_mais.index))
+                    # Chamada corrigida: apenas phi_mais e phi_menos
+                    st.pyplot(gerar_grafo_sobreclassificacao(phi_mais, phi_menos))
 
                 # Armazenar resultados para o relatório, incluindo os limiares e tipos
                 st.session_state.resultados = {
@@ -517,7 +537,7 @@ def main():
                     'ranking': ranking,
                     'fig_pesos': gerar_grafico_pesos(pesos),
                     'fig_fluxos': gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido),
-                    'fig_grafo': gerar_grafo_sobreclassificacao(phi_mais, phi_menos, phi_mais.index),
+                    'fig_grafo': gerar_grafo_sobreclassificacao(phi_mais, phi_menos),
                     'q_limites': qs,
                     'p_limites': ps,
                     'tipos': tipos
@@ -568,12 +588,11 @@ def main():
                     except PermissionError:
                         pass
 
-        # NOVO: Botão para Nova Análise
+        # Botão para Nova Análise
         st.divider()
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("🔄 Nova Análise", use_container_width=True):
-                # Limpar os dados da análise atual
                 st.session_state.dados_entrada = None
                 st.session_state.criterios_params = {}
                 st.session_state.resultados = {}
