@@ -111,12 +111,12 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
     return fig
 
 # ------------------------------------------------------------
-# FUNÇÃO CORRIGIDA DO GRAFO (com setas visíveis e sem corte de rótulos)
+# FUNÇÃO CORRIGIDA DO GRAFO (setas triangulares nítidas em todas as arestas)
 # ------------------------------------------------------------
 def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     """
     Gera o grafo de sobreclassificação (PROMETHEE I) com setas triangulares na ponta.
-    Se não houver arestas, exibe uma mensagem no gráfico.
+    A seta aponta de quem domina para quem é dominado.
     """
     G = nx.DiGraph()
     alt_list = list(phi_mais.index)
@@ -139,10 +139,10 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
             if cond1 or cond2 or cond3:
                 G.add_edge(a, b)
 
-    # AUMENTAR O TAMANHO DA FIGURA PARA EVITAR CORTES
-    fig, ax = plt.subplots(figsize=(16, 12))
+    # Figura maior para acomodar todos os elementos
+    fig, ax = plt.subplots(figsize=(18, 12))
 
-    # Se não houver arestas, exibe um aviso no gráfico
+    # Se não houver arestas, exibe um aviso
     if G.number_of_edges() == 0:
         ax.text(0.5, 0.5, 'Nenhuma relação de sobreclassificação encontrada', 
                 ha='center', va='center', fontsize=16, transform=ax.transAxes)
@@ -150,37 +150,37 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
         ax.axis('off')
         return fig
 
-    # Layout spring para distribuir bem os nós
+    # Layout para distribuir os nós
     pos = nx.spring_layout(G, seed=42, k=3, iterations=100)
 
-    # REDUZIR O TAMANHO DOS NÓS PARA DAR ESPAÇO ÀS SETAS E RÓTULOS
+    # Desenha nós com tamanho reduzido para dar espaço às setas
     nx.draw_networkx_nodes(G, pos, node_size=3500, node_color='lightblue', 
                            edgecolors='black', linewidths=2, ax=ax)
 
-    # DESENHAR ARESTAS COM SETAS TRIANGULARES MAIORES E MARGENS AJUSTADAS
+    # Desenha arestas com setas triangulares grandes e bem visíveis
     nx.draw_networkx_edges(
         G, pos,
         arrows=True,
         arrowstyle='-|>',                 # Seta triangular preenchida
-        arrowsize=60,                      # AUMENTAR TAMANHO DA SETA
+        arrowsize=70,                      # Tamanho extra grande
         edge_color='gray',
-        width=3,
+        width=4,                           # Linha mais grossa
         connectionstyle='arc3,rad=0.2',    # Arestas curvas
         ax=ax,
-        min_source_margin=15,               # REDUZIR MARGENS PARA NÃO SUPRIMIR SETAS
-        min_target_margin=15                 # REDUZIR MARGENS
+        min_source_margin=10,               # Margem mínima na origem
+        min_target_margin=10                 # Margem mínima no destino (permite seta visível)
     )
 
-    # Desenha rótulos com fonte maior
+    # Rótulos com fonte maior
     nx.draw_networkx_labels(G, pos, font_size=16, font_weight='bold', 
                             font_family='DejaVu Sans', ax=ax)
 
     ax.set_title("Grafo de Sobreclassificação (PROMETHEE I)", fontsize=18, pad=20)
     ax.axis('off')
     
-    # AJUSTAR LAYOUT E ADICIONAR MARGEM EXTRA PARA EVITAR CORTES
+    # Ajusta margens para evitar corte de rótulos
     plt.tight_layout()
-    plt.margins(0.2)   # Garante que os rótulos não fiquem nas bordas
+    plt.margins(0.15)
     
     return fig
 
