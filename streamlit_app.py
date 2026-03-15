@@ -112,7 +112,7 @@ def gerar_grafico_fluxos(phi_mais, phi_menos, phi_liquido):
 
 def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     """
-    Gera o grafo de sobreclassificação (PROMETHEE I) com setas bem visíveis.
+    Gera o grafo de sobreclassificação (PROMETHEE I) com setas triangulares na ponta.
     Se não houver arestas, exibe uma mensagem no gráfico.
     """
     G = nx.DiGraph()
@@ -153,12 +153,12 @@ def gerar_grafo_sobreclassificacao(phi_mais, phi_menos):
     nx.draw_networkx_nodes(G, pos, node_size=5000, node_color='lightblue', 
                            edgecolors='black', linewidths=2, ax=ax)
 
-    # Desenha arestas com setas GIGANTES e visíveis
+    # Desenha arestas com setas triangulares na ponta
     nx.draw_networkx_edges(
         G, pos,
         arrows=True,
-        arrowstyle='-|>',
-        arrowsize=50,
+        arrowstyle='-|>',        # Seta triangular
+        arrowsize=40,            # Tamanho da seta bem grande
         edge_color='gray',
         width=3,
         connectionstyle='arc3,rad=0.2',
